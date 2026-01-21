@@ -2,9 +2,11 @@ mod token;
 mod lexer;
 mod ast;
 mod parser;
+mod semantic;
 
 use lexer::Lexer;
 use parser::Parser;
+use semantic::SemanticAnalyzer;
 use token::Token;
 
 use std::env;
@@ -28,5 +30,9 @@ fn main() {
     let mut parser = Parser::new(tokens);
     let ast = parser.parse_program();
 
+    let mut semantic = SemanticAnalyzer::new();
+    semantic.analyze(&ast);
+
+    println!("Semantic analysis passed.");
     println!("{:#?}", ast);
 }
