@@ -26,6 +26,15 @@ pub enum Stmt {
         then_block: Block,
         else_block: Option<Block>,
     },
+    Assign {
+        name: String,
+        value: Expr,
+    },
+    While {
+        condition: Expr,
+        body: Block,
+    },
+
 }
 
 #[derive(Debug, Clone)]

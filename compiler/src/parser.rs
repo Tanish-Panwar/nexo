@@ -84,6 +84,17 @@ impl Parser {
         match self.current() {
             Token::Let => self.parse_let(),
             Token::If => self.parse_if(),
+            Token::While => self.parse_while(),
+            Token::Ident(_) => {
+                // Lookahead for assignment
+                if matches!(self.tokens[self.position + 1], Token::Equal) {
+                    self.parse_assign()
+                } else {
+                    let expr = self.parse_expression();
+                    self.expect(Token::Semicolon);
+                    Stmt::ExprStmt(expr)
+                }
+            }
             _ => {
                 let expr = self.parse_expression();
                 self.expect(Token::Semicolon);
@@ -91,6 +102,41 @@ impl Parser {
             }
         }
     }
+
+    fn parse_while(&mut self) -> Stmt {
+        self.expect(Token::While);
+        self.expect(Token::LParen);
+
+        let condition = self.parse_expression();
+
+        self.expect(Token::RParen);
+        self.expect(Token::LBrace);
+
+        let body = self.parse_block();
+
+        self.expect(Token::RBrace);
+
+        Stmt::While { condition, body }
+    }
+
+
+    fn parse_assign(&mut self) -> Stmt {
+        let name = if let Token::Ident(n) = self.current() {
+            let n = n.clone();
+            self.advance();
+            n
+        } else {
+            panic!("Expected variable name");
+        };
+
+        self.expect(Token::Equal);
+
+        let value = self.parse_expression();
+        self.expect(Token::Semicolon);
+
+        Stmt::Assign { name, value }
+    }
+
 
     fn parse_if(&mut self) -> Stmt {
         self.expect(Token::If);

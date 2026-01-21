@@ -54,32 +54,44 @@ impl CodeGenerator {
                 self.output.push_str(";\n");
             }
 
+            Stmt::Assign { name, value } => {
+                self.output.push_str(name);
+                self.output.push_str(" = ");
+                self.emit_expr(value);
+                self.output.push_str(";\n");
+            }
+
             Stmt::ExprStmt(expr) => {
                 self.emit_expr(expr);
                 self.output.push_str(";\n");
             }
-            Stmt::If {
-                condition,
-                then_block,
-                else_block,
-            } => {
+
+            Stmt::If { condition, then_block, else_block } => {
                 self.output.push_str("if (");
                 self.emit_expr(condition);
                 self.output.push_str(") {\n");
                 self.emit_block(then_block);
                 self.output.push_str("}");
 
-                if let Some(b) = else_block {
+                if let Some(else_block) = else_block {
                     self.output.push_str(" else {\n");
-                    self.emit_block(b);
+                    self.emit_block(else_block);
                     self.output.push_str("}");
                 }
 
-                self.output.push('\n');
+                self.output.push_str("\n");
             }
 
+            Stmt::While { condition, body } => {
+                self.output.push_str("while (");
+                self.emit_expr(condition);
+                self.output.push_str(") {\n");
+                self.emit_block(body);
+                self.output.push_str("}\n");
+            }
         }
     }
+
 
 
     fn emit_expr(&mut self, expr: &Expr) {

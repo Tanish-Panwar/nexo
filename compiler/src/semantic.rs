@@ -14,7 +14,11 @@ impl SemanticAnalyzer {
 
     pub fn analyze(&mut self, program: &Program) {
         self.collect_functions(program);
-        self.check_functions(program);
+
+        for func in &program.functions {
+            let mut vars = HashSet::new();
+            self.check_block(&func.body, &mut vars);
+        }
     }
 
     fn collect_functions(&mut self, program: &Program) {
@@ -26,36 +30,51 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn check_functions(&self, program: &Program) {
-        for func in &program.functions {
-            self.check_block(&func.body);
+    fn check_block(&self, block: &Block, vars: &mut HashSet<String>) {
+        for stmt in &block.statements {
+            self.check_stmt(stmt, vars);
         }
     }
 
-    fn check_block(&self, block: &Block) {
-        let mut variables = HashSet::new();
+    fn check_stmt(&self, stmt: &Stmt, vars: &mut HashSet<String>) {
+        match stmt {
+            Stmt::Let { name, value } => {
+                self.check_expr(value, vars);
+                vars.insert(name.clone());
+            }
 
-        for stmt in &block.statements {
-            match stmt {
-                Stmt::Let { name, value } => {
-                    self.check_expr(value, &variables);
-                    variables.insert(name.clone());
+            Stmt::Assign { name, value } => {
+                if !vars.contains(name) {
+                    panic!("Semantic error: assigning to undefined variable `{}`", name);
                 }
-                Stmt::ExprStmt(expr) => {
-                    self.check_expr(expr, &variables);
-                }
-                Stmt::If {
-                    condition,
-                    then_block,
-                    else_block,
-                } => {
-                    self.check_expr(condition, &variables);
-                    self.check_block(then_block);
-                    if let Some(b) = else_block {
-                        self.check_block(b);
-                    }
-                }
+                self.check_expr(value, vars);
+            }
 
+            Stmt::ExprStmt(expr) => {
+                self.check_expr(expr, vars);
+            }
+
+            Stmt::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
+                self.check_expr(condition, vars);
+
+                let mut then_vars = vars.clone();
+                self.check_block(then_block, &mut then_vars);
+
+                if let Some(b) = else_block {
+                    let mut else_vars = vars.clone();
+                    self.check_block(b, &mut else_vars);
+                }
+            }
+
+            Stmt::While { condition, body } => {
+                self.check_expr(condition, vars);
+
+                let mut loop_vars = vars.clone();
+                self.check_block(body, &mut loop_vars);
             }
         }
     }
@@ -77,14 +96,13 @@ impl SemanticAnalyzer {
                 }
             }
 
-            Expr::IntLiteral(_) => {}
-            Expr::StringLiteral(_) => {}
-
             Expr::Binary { left, right, .. } => {
                 self.check_expr(left, vars);
                 self.check_expr(right, vars);
             }
 
+            Expr::IntLiteral(_) => {}
+            Expr::StringLiteral(_) => {}
         }
     }
 }

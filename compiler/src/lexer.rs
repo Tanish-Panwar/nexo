@@ -92,7 +92,16 @@ impl Lexer {
             Some('}') => { self.advance(); Token::RBrace }
             Some(',') => { self.advance(); Token::Comma }
             Some(';') => { self.advance(); Token::Semicolon }
-            Some('=') => { self.advance(); Token::Equal }
+            Some('=') => {
+                self.advance();
+                if self.current_char() == Some('=') {
+                    self.advance();
+                    Token::EqualEqual
+                } else {
+                    Token::Equal
+                }
+            }
+            
 
             Some('+') => { self.advance(); Token::Plus }
             Some('-') => { self.advance(); Token::Minus }
@@ -119,17 +128,8 @@ impl Lexer {
                     "else" => Token::Else,
                     "for" => Token::For,
                     "return" => Token::Return,
+                    "while" => Token::While,
                     _ => Token::Ident(ident),
-                }
-            }
-
-            Some('=') => {
-                self.advance();
-                if self.current_char() == Some('=') {
-                    self.advance();
-                    Token::EqualEqual
-                } else {
-                    Token::Equal
                 }
             }
 

@@ -7,6 +7,7 @@ pub enum Token {
     Else,
     For,
     Return,
+    While,
 
     // Identifiers & literals
     Ident(String),
