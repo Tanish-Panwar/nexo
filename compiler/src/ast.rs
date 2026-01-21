@@ -29,8 +29,22 @@ pub enum Expr {
         name: String,
         args: Vec<Expr>,
     },
+    Binary {
+        left: Box<Expr>,
+        op: BinOp,
+        right: Box<Expr>,
+    },
     IntLiteral(i64),
     VarRef(String),
     StringLiteral(String),
 }
 
+
+
+#[derive(Debug, Clone)]
+pub enum BinOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+}

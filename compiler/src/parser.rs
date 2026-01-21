@@ -30,6 +30,10 @@ impl Parser {
         }
     }
 
+    // =======================
+    // PROGRAM
+    // =======================
+
     pub fn parse_program(&mut self) -> Program {
         let mut functions = Vec::new();
 
@@ -72,6 +76,10 @@ impl Parser {
         Block { statements }
     }
 
+    // =======================
+    // STATEMENTS
+    // =======================
+
     fn parse_statement(&mut self) -> Stmt {
         match self.current() {
             Token::Let => self.parse_let(),
@@ -103,9 +111,78 @@ impl Parser {
         Stmt::Let { name, value }
     }
 
-
+    // =======================
+    // EXPRESSIONS (PRECEDENCE)
+    // =======================
 
     fn parse_expression(&mut self) -> Expr {
+        self.parse_add_sub()
+    }
+
+    // + -
+    fn parse_add_sub(&mut self) -> Expr {
+        let mut expr = self.parse_mul_div();
+
+        loop {
+            match self.current() {
+                Token::Plus => {
+                    self.advance();
+                    let right = self.parse_mul_div();
+                    expr = Expr::Binary {
+                        left: Box::new(expr),
+                        op: BinOp::Add,
+                        right: Box::new(right),
+                    };
+                }
+                Token::Minus => {
+                    self.advance();
+                    let right = self.parse_mul_div();
+                    expr = Expr::Binary {
+                        left: Box::new(expr),
+                        op: BinOp::Sub,
+                        right: Box::new(right),
+                    };
+                }
+                _ => break,
+            }
+        }
+
+        expr
+    }
+
+    // * /
+    fn parse_mul_div(&mut self) -> Expr {
+        let mut expr = self.parse_primary();
+
+        loop {
+            match self.current() {
+                Token::Star => {
+                    self.advance();
+                    let right = self.parse_primary();
+                    expr = Expr::Binary {
+                        left: Box::new(expr),
+                        op: BinOp::Mul,
+                        right: Box::new(right),
+                    };
+                }
+                Token::Slash => {
+                    self.advance();
+                    let right = self.parse_primary();
+                    expr = Expr::Binary {
+                        left: Box::new(expr),
+                        op: BinOp::Div,
+                        right: Box::new(right),
+                    };
+                }
+                _ => break,
+            }
+        }
+
+        expr
+    }
+
+    // literals, identifiers, calls, parentheses
+    fn parse_primary(&mut self) -> Expr {
         match self.current() {
             Token::Int(value) => {
                 let v = *value;
@@ -117,6 +194,7 @@ impl Parser {
                 let name = name.clone();
                 self.advance();
 
+                // function call
                 if *self.current() == Token::LParen {
                     self.advance();
 
@@ -135,6 +213,13 @@ impl Parser {
                 }
             }
 
+            Token::LParen => {
+                self.advance();
+                let expr = self.parse_expression();
+                self.expect(Token::RParen);
+                expr
+            }
+
             Token::String(value) => {
                 let v = value.clone();
                 self.advance();
@@ -144,5 +229,4 @@ impl Parser {
             _ => panic!("Unexpected token {:?}", self.current()),
         }
     }
-
 }

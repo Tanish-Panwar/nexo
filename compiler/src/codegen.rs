@@ -107,6 +107,20 @@ impl CodeGenerator {
             Expr::VarRef(name) => {
                 self.output.push_str(name);
             }
+            Expr::Binary { left, op, right } => {
+                self.output.push('(');
+                self.emit_expr(left);
+                match op {
+                    BinOp::Add => self.output.push_str(" + "),
+                    BinOp::Sub => self.output.push_str(" - "),
+                    BinOp::Mul => self.output.push_str(" * "),
+                    BinOp::Div => self.output.push_str(" / "),
+                }
+                self.emit_expr(right);
+                self.output.push(')');
+            }
+
         }
     }
+    
 }

@@ -67,6 +67,12 @@ impl SemanticAnalyzer {
 
             Expr::IntLiteral(_) => {}
             Expr::StringLiteral(_) => {}
+            
+            Expr::Binary { left, right, .. } => {
+                self.check_expr(left, vars);
+                self.check_expr(right, vars);
+            }
+
         }
     }
 }

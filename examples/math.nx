@@ -1,0 +1,6 @@
+fn main() {
+    let x = 10 + 20 * 3 * 4 - 2;
+    let y = (10 + 20) * 3;
+    print(x);
+    print(y);
+}
