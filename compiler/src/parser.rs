@@ -73,31 +73,66 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Stmt {
-        let expr = self.parse_expression();
-        self.expect(Token::Semicolon);
-        Stmt::ExprStmt(expr)
+        match self.current() {
+            Token::Let => self.parse_let(),
+            _ => {
+                let expr = self.parse_expression();
+                self.expect(Token::Semicolon);
+                Stmt::ExprStmt(expr)
+            }
+        }
     }
+
+    fn parse_let(&mut self) -> Stmt {
+        self.expect(Token::Let);
+
+        let name = if let Token::Ident(n) = self.current() {
+            let n = n.clone();
+            self.advance();
+            n
+        } else {
+            panic!("Expected variable name");
+        };
+
+        self.expect(Token::Equal);
+
+        let value = self.parse_expression();
+
+        self.expect(Token::Semicolon);
+
+        Stmt::Let { name, value }
+    }
+
+
 
     fn parse_expression(&mut self) -> Expr {
         match self.current() {
+            Token::Int(value) => {
+                let v = *value;
+                self.advance();
+                Expr::IntLiteral(v)
+            }
+
             Token::Ident(name) => {
                 let name = name.clone();
                 self.advance();
 
-                self.expect(Token::LParen);
+                if *self.current() == Token::LParen {
+                    self.advance();
 
-                let mut args = Vec::new();
-
-                while *self.current() != Token::RParen {
-                    args.push(self.parse_expression());
-                    if *self.current() == Token::Comma {
-                        self.advance();
+                    let mut args = Vec::new();
+                    while *self.current() != Token::RParen {
+                        args.push(self.parse_expression());
+                        if *self.current() == Token::Comma {
+                            self.advance();
+                        }
                     }
+
+                    self.expect(Token::RParen);
+                    Expr::Call { name, args }
+                } else {
+                    Expr::VarRef(name)
                 }
-
-                self.expect(Token::RParen);
-
-                Expr::Call { name, args }
             }
 
             Token::String(value) => {
@@ -109,4 +144,5 @@ impl Parser {
             _ => panic!("Unexpected token {:?}", self.current()),
         }
     }
+
 }

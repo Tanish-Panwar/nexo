@@ -66,6 +66,22 @@ impl Lexer {
         value
     }
 
+    fn read_number(&mut self) -> i64 {
+        let start = self.position;
+
+        while let Some(c) = self.current_char() {
+            if c.is_ascii_digit() {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        let number: String = self.input[start..self.position].iter().collect();
+        number.parse().unwrap()
+    }
+
+
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
@@ -76,11 +92,18 @@ impl Lexer {
             Some('}') => { self.advance(); Token::RBrace }
             Some(',') => { self.advance(); Token::Comma }
             Some(';') => { self.advance(); Token::Semicolon }
+            Some('=') => { self.advance(); Token::Equal }
 
             Some('+') => { self.advance(); Token::Plus }
             Some('-') => { self.advance(); Token::Minus }
             Some('*') => { self.advance(); Token::Star }
             Some('/') => { self.advance(); Token::Slash }
+
+            Some(c) if c.is_ascii_digit() => {
+                let num = self.read_number();
+                Token::Int(num)
+            }
+
 
             Some('"') => {
                 let s = self.read_string();

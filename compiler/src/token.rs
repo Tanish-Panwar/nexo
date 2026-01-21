@@ -20,6 +20,8 @@ pub enum Token {
     RBrace,   // }
     Comma,    // ,
     Semicolon,// ;
+    Equal, // =
+
 
     // Operators
     Plus,     // +

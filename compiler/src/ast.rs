@@ -16,6 +16,10 @@ pub struct Block {
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
+    Let {
+        name: String,
+        value: Expr,
+    },
     ExprStmt(Expr),
 }
 
@@ -25,5 +29,8 @@ pub enum Expr {
         name: String,
         args: Vec<Expr>,
     },
+    IntLiteral(i64),
+    VarRef(String),
     StringLiteral(String),
 }
+

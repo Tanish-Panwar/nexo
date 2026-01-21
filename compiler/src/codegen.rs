@@ -46,6 +46,14 @@ impl CodeGenerator {
 
     fn emit_stmt(&mut self, stmt: &Stmt) {
         match stmt {
+            Stmt::Let { name, value } => {
+                self.output.push_str("int ");
+                self.output.push_str(name);
+                self.output.push_str(" = ");
+                self.emit_expr(value);
+                self.output.push_str(";\n");
+            }
+
             Stmt::ExprStmt(expr) => {
                 self.emit_expr(expr);
                 self.output.push_str(";\n");
@@ -53,14 +61,27 @@ impl CodeGenerator {
         }
     }
 
+
     fn emit_expr(&mut self, expr: &Expr) {
         match expr {
             Expr::Call { name, args } => {
                 if name == "print" {
                     self.output.push_str("printf(");
-                    if let Some(arg) = args.first() {
-                        self.emit_expr(arg);
+
+                    match args.first().unwrap() {
+                        Expr::IntLiteral(_) | Expr::VarRef(_) => {
+                            self.output.push_str("\"%d\\n\", ");
+                            self.emit_expr(&args[0]);
+                        }
+
+                        Expr::StringLiteral(_) => {
+                            self.output.push_str("\"%s\\n\", ");
+                            self.emit_expr(&args[0]);
+                        }
+
+                        _ => panic!("Unsupported print argument"),
                     }
+
                     self.output.push_str(")");
                 } else {
                     self.output.push_str(name);
@@ -79,6 +100,12 @@ impl CodeGenerator {
                 self.output.push('"');
                 self.output.push_str(value);
                 self.output.push('"');
+            }
+            Expr::IntLiteral(v) => {
+                self.output.push_str(&v.to_string());
+            }
+            Expr::VarRef(name) => {
+                self.output.push_str(name);
             }
         }
     }

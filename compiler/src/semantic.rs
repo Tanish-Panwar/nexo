@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use std::collections::{HashMap, HashSet};
 use crate::ast::*;
 
 pub struct SemanticAnalyzer {
@@ -34,29 +33,39 @@ impl SemanticAnalyzer {
     }
 
     fn check_block(&self, block: &Block) {
+        let mut variables = HashSet::new();
+
         for stmt in &block.statements {
-            self.check_stmt(stmt);
+            match stmt {
+                Stmt::Let { name, value } => {
+                    self.check_expr(value, &variables);
+                    variables.insert(name.clone());
+                }
+                Stmt::ExprStmt(expr) => {
+                    self.check_expr(expr, &variables);
+                }
+            }
         }
     }
 
-    fn check_stmt(&self, stmt: &Stmt) {
-        match stmt {
-            Stmt::ExprStmt(expr) => self.check_expr(expr),
-        }
-    }
-
-    fn check_expr(&self, expr: &Expr) {
+    fn check_expr(&self, expr: &Expr, vars: &HashSet<String>) {
         match expr {
+            Expr::VarRef(name) => {
+                if !vars.contains(name) {
+                    panic!("Semantic error: undefined variable `{}`", name);
+                }
+            }
+
             Expr::Call { name, args } => {
                 if name != "print" && !self.functions.contains_key(name) {
                     panic!("Semantic error: undefined function `{}`", name);
                 }
-
                 for arg in args {
-                    self.check_expr(arg);
+                    self.check_expr(arg, vars);
                 }
             }
 
+            Expr::IntLiteral(_) => {}
             Expr::StringLiteral(_) => {}
         }
     }
