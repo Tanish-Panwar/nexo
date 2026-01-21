@@ -1,0 +1,25 @@
+use std::env;
+use std::fs;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() < 2 {
+        eprintln!("Usage: nx <file.nx>");
+        std::process::exit(1);
+    }
+
+    let filename = &args[1];
+
+    if !filename.ends_with(".nx") {
+        eprintln!("Error: Expected a .nx file");
+        std::process::exit(1);
+    }
+
+    let source = fs::read_to_string(filename)
+        .expect("Failed to read source file");
+
+    println!("Compiling {}", filename);
+    println!("--- SOURCE ---");
+    println!("{}", source);
+}
