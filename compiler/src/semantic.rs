@@ -44,6 +44,18 @@ impl SemanticAnalyzer {
                 Stmt::ExprStmt(expr) => {
                     self.check_expr(expr, &variables);
                 }
+                Stmt::If {
+                    condition,
+                    then_block,
+                    else_block,
+                } => {
+                    self.check_expr(condition, &variables);
+                    self.check_block(then_block);
+                    if let Some(b) = else_block {
+                        self.check_block(b);
+                    }
+                }
+
             }
         }
     }
@@ -67,7 +79,7 @@ impl SemanticAnalyzer {
 
             Expr::IntLiteral(_) => {}
             Expr::StringLiteral(_) => {}
-            
+
             Expr::Binary { left, right, .. } => {
                 self.check_expr(left, vars);
                 self.check_expr(right, vars);

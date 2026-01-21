@@ -123,6 +123,20 @@ impl Lexer {
                 }
             }
 
+            Some('=') => {
+                self.advance();
+                if self.current_char() == Some('=') {
+                    self.advance();
+                    Token::EqualEqual
+                } else {
+                    Token::Equal
+                }
+            }
+
+            Some('>') => { self.advance(); Token::Greater }
+            Some('<') => { self.advance(); Token::Less }
+
+
             None => Token::EOF,
 
             Some(_) => {

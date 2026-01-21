@@ -83,6 +83,7 @@ impl Parser {
     fn parse_statement(&mut self) -> Stmt {
         match self.current() {
             Token::Let => self.parse_let(),
+            Token::If => self.parse_if(),
             _ => {
                 let expr = self.parse_expression();
                 self.expect(Token::Semicolon);
@@ -90,6 +91,38 @@ impl Parser {
             }
         }
     }
+
+    fn parse_if(&mut self) -> Stmt {
+        self.expect(Token::If);
+        self.expect(Token::LParen);
+
+        let condition = self.parse_expression();
+
+        self.expect(Token::RParen);
+        self.expect(Token::LBrace);
+
+        let then_block = self.parse_block();
+
+        self.expect(Token::RBrace);
+
+        let else_block = if *self.current() == Token::Else {
+            self.advance();
+            self.expect(Token::LBrace);
+            let block = self.parse_block();
+            self.expect(Token::RBrace);
+            Some(block)
+        } else {
+            None
+        };
+
+        Stmt::If {
+            condition,
+            then_block,
+            else_block,
+        }
+    }
+
+
 
     fn parse_let(&mut self) -> Stmt {
         self.expect(Token::Let);
@@ -116,8 +149,48 @@ impl Parser {
     // =======================
 
     fn parse_expression(&mut self) -> Expr {
-        self.parse_add_sub()
+        self.parse_comparison()
     }
+
+    fn parse_comparison(&mut self) -> Expr {
+        let mut expr = self.parse_add_sub();
+
+        loop {
+            match self.current() {
+                Token::Greater => {
+                    self.advance();
+                    let right = self.parse_add_sub();
+                    expr = Expr::Binary {
+                        left: Box::new(expr),
+                        op: BinOp::Greater,
+                        right: Box::new(right),
+                    };
+                }
+                Token::Less => {
+                    self.advance();
+                    let right = self.parse_add_sub();
+                    expr = Expr::Binary {
+                        left: Box::new(expr),
+                        op: BinOp::Less,
+                        right: Box::new(right),
+                    };
+                }
+                Token::EqualEqual => {
+                    self.advance();
+                    let right = self.parse_add_sub();
+                    expr = Expr::Binary {
+                        left: Box::new(expr),
+                        op: BinOp::Equal,
+                        right: Box::new(right),
+                    };
+                }
+                _ => break,
+            }
+        }
+
+        expr
+    }
+
 
     // + -
     fn parse_add_sub(&mut self) -> Expr {

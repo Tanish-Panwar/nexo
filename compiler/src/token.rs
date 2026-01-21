@@ -21,6 +21,12 @@ pub enum Token {
     Comma,    // ,
     Semicolon,// ;
     Equal, // =
+    
+    // Comparison Ops T-T
+    Greater,   // >
+    Less,      // <
+    EqualEqual,// ==
+
 
 
     // Operators

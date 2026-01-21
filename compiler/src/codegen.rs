@@ -58,6 +58,26 @@ impl CodeGenerator {
                 self.emit_expr(expr);
                 self.output.push_str(";\n");
             }
+            Stmt::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
+                self.output.push_str("if (");
+                self.emit_expr(condition);
+                self.output.push_str(") {\n");
+                self.emit_block(then_block);
+                self.output.push_str("}");
+
+                if let Some(b) = else_block {
+                    self.output.push_str(" else {\n");
+                    self.emit_block(b);
+                    self.output.push_str("}");
+                }
+
+                self.output.push('\n');
+            }
+
         }
     }
 
@@ -115,6 +135,10 @@ impl CodeGenerator {
                     BinOp::Sub => self.output.push_str(" - "),
                     BinOp::Mul => self.output.push_str(" * "),
                     BinOp::Div => self.output.push_str(" / "),
+                    BinOp::Greater => self.output.push_str(" > "),
+                    BinOp::Less => self.output.push_str(" < "),
+                    BinOp::Equal => self.output.push_str(" == "),
+
                 }
                 self.emit_expr(right);
                 self.output.push(')');

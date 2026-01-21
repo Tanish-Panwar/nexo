@@ -21,6 +21,11 @@ pub enum Stmt {
         value: Expr,
     },
     ExprStmt(Expr),
+    If {
+        condition: Expr,
+        then_block: Block,
+        else_block: Option<Block>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -47,4 +52,7 @@ pub enum BinOp {
     Sub,
     Mul,
     Div,
+    Greater,
+    Less,
+    Equal,
 }
