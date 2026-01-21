@@ -1,3 +1,8 @@
+mod token;
+mod lexer;
+
+use lexer::Lexer;
+
 use std::env;
 use std::fs;
 
@@ -6,20 +11,18 @@ fn main() {
 
     if args.len() < 2 {
         eprintln!("Usage: nx <file.nx>");
-        std::process::exit(1);
+        return;
     }
 
-    let filename = &args[1];
+    let source = fs::read_to_string(&args[1]).expect("Failed to read file");
 
-    if !filename.ends_with(".nx") {
-        eprintln!("Error: Expected a .nx file");
-        std::process::exit(1);
+    let mut lexer = Lexer::new(&source);
+
+    loop {
+        let token = lexer.next_token();
+        println!("{:?}", token);
+        if token == token::Token::EOF {
+            break;
+        }
     }
-
-    let source = fs::read_to_string(filename)
-        .expect("Failed to read source file");
-
-    println!("Compiling {}", filename);
-    println!("--- SOURCE ---");
-    println!("{}", source);
 }

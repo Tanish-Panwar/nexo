@@ -1,0 +1,1 @@
+C:\Users\TANISH\ panwar\Desktop\nexo\compiler\target\debug\compiler.exe: C:\Users\TANISH\ panwar\Desktop\nexo\compiler\src\lexer.rs C:\Users\TANISH\ panwar\Desktop\nexo\compiler\src\main.rs C:\Users\TANISH\ panwar\Desktop\nexo\compiler\src\token.rs
