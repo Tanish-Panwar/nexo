@@ -8,6 +8,8 @@ pub enum Token {
     For,
     Return,
     While,
+    Break, 
+    Continue,
 
     // Identifiers & literals
     Ident(String),

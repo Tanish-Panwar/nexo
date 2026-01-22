@@ -129,6 +129,8 @@ impl Lexer {
                     "for" => Token::For,
                     "return" => Token::Return,
                     "while" => Token::While,
+                    "break" => Token::Break,
+                    "continue" => Token::Continue,
                     _ => Token::Ident(ident),
                 }
             }

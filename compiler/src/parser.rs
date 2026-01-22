@@ -108,6 +108,16 @@ impl Parser {
                 self.expect(Token::Semicolon);
                 Stmt::Return(expr)
             }
+            Token::Break => {
+                self.advance();
+                self.expect(Token::Semicolon);
+                Stmt::Break
+            }
+            Token::Continue => {
+                self.advance();
+                self.expect(Token::Semicolon);
+                Stmt::Continue
+            }
             Token::Ident(_) => {
                 // Lookahead for assignment
                 if matches!(self.tokens[self.position + 1], Token::Equal) {
