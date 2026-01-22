@@ -4,6 +4,7 @@ use crate::ast::*;
 pub struct SemanticAnalyzer {
     functions: HashMap<String, FunctionDecl>,
     scopes: Vec<HashMap<String, ()>>,
+    in_loop: bool,
 }
 
 impl SemanticAnalyzer {
@@ -11,6 +12,7 @@ impl SemanticAnalyzer {
         SemanticAnalyzer {
             functions: HashMap::new(),
             scopes: Vec::new(),
+            in_loop: false,
         }
     }
 
@@ -126,8 +128,19 @@ impl SemanticAnalyzer {
 
             Stmt::While { condition, body } => {
                 self.check_expr(condition);
+
+                let old = self.in_loop;
+                self.in_loop = true;
                 self.check_block(body);
+                self.in_loop = old;
             }
+
+            Stmt::Break | Stmt::Continue => {
+                if !self.in_loop {
+                    panic!("break/continue used outside loop");
+                }
+            }
+
         }
     }
 

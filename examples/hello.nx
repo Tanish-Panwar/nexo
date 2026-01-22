@@ -1,3 +1,4 @@
 fn main() {
-    print("Hello, Nexo!");
+    print(10);
+    print(20);
 }
