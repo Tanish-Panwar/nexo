@@ -26,17 +26,23 @@ impl CodeGenerator {
     }
 
     fn emit_function(&mut self, func: &FunctionDecl) {
-        if func.name == "main" {
-            self.output.push_str("int main() {\n");
-        } else {
-            self.output
-                .push_str(&format!("void {}() {{\n", func.name));
+        self.output.push_str("int ");
+        self.output.push_str(&func.name);
+        self.output.push('(');
+
+        for (i, param) in func.params.iter().enumerate() {
+            if i > 0 {
+                self.output.push_str(", ");
+            }
+            self.output.push_str("int ");
+            self.output.push_str(param);
         }
 
+        self.output.push_str(") {\n");
         self.emit_block(&func.body);
-
         self.output.push_str("}\n\n");
     }
+
 
     fn emit_block(&mut self, block: &Block) {
         for stmt in &block.statements {
@@ -51,6 +57,12 @@ impl CodeGenerator {
                 self.output.push_str(name);
                 self.output.push_str(" = ");
                 self.emit_expr(value);
+                self.output.push_str(";\n");
+            }
+
+            Stmt::Return(expr) => {
+                self.output.push_str("return ");
+                self.emit_expr(expr);
                 self.output.push_str(";\n");
             }
 

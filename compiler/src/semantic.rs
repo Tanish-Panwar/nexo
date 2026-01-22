@@ -1,14 +1,16 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use crate::ast::*;
 
 pub struct SemanticAnalyzer {
     functions: HashMap<String, FunctionDecl>,
+    scopes: Vec<HashMap<String, ()>>,
 }
 
 impl SemanticAnalyzer {
     pub fn new() -> Self {
         SemanticAnalyzer {
             functions: HashMap::new(),
+            scopes: Vec::new(),
         }
     }
 
@@ -16,8 +18,7 @@ impl SemanticAnalyzer {
         self.collect_functions(program);
 
         for func in &program.functions {
-            let mut vars = HashSet::new();
-            self.check_block(&func.body, &mut vars);
+            self.check_function(func);
         }
     }
 
@@ -30,28 +31,85 @@ impl SemanticAnalyzer {
         }
     }
 
-    fn check_block(&self, block: &Block, vars: &mut HashSet<String>) {
-        for stmt in &block.statements {
-            self.check_stmt(stmt, vars);
-        }
+    /* ======================
+        SCOPE MANAGEMENT
+    ====================== */
+
+    fn push_scope(&mut self) {
+        self.scopes.push(HashMap::new());
     }
 
-    fn check_stmt(&self, stmt: &Stmt, vars: &mut HashSet<String>) {
+    fn pop_scope(&mut self) {
+        self.scopes.pop();
+    }
+
+    fn declare_var(&mut self, name: &str) {
+        self.scopes
+            .last_mut()
+            .unwrap()
+            .insert(name.to_string(), ());
+    }
+
+    fn is_var_defined(&self, name: &str) -> bool {
+        for scope in self.scopes.iter().rev() {
+            if scope.contains_key(name) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /* ======================
+        FUNCTION CHECK
+    ====================== */
+
+    fn check_function(&mut self, func: &FunctionDecl) {
+        self.push_scope();
+
+        // Parameters are local variables
+        for param in &func.params {
+            self.declare_var(param);
+        }
+
+        self.check_block(&func.body);
+
+        self.pop_scope();
+    }
+
+    /* ======================
+        BLOCK / STATEMENTS
+    ====================== */
+
+    fn check_block(&mut self, block: &Block) {
+        self.push_scope();
+
+        for stmt in &block.statements {
+            self.check_stmt(stmt);
+        }
+
+        self.pop_scope();
+    }
+
+    fn check_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Let { name, value } => {
-                self.check_expr(value, vars);
-                vars.insert(name.clone());
+                self.check_expr(value);
+                self.declare_var(name);
             }
 
             Stmt::Assign { name, value } => {
-                if !vars.contains(name) {
+                if !self.is_var_defined(name) {
                     panic!("Semantic error: assigning to undefined variable `{}`", name);
                 }
-                self.check_expr(value, vars);
+                self.check_expr(value);
+            }
+
+            Stmt::Return(expr) => {
+                self.check_expr(expr);
             }
 
             Stmt::ExprStmt(expr) => {
-                self.check_expr(expr, vars);
+                self.check_expr(expr);
             }
 
             Stmt::If {
@@ -59,30 +117,28 @@ impl SemanticAnalyzer {
                 then_block,
                 else_block,
             } => {
-                self.check_expr(condition, vars);
-
-                let mut then_vars = vars.clone();
-                self.check_block(then_block, &mut then_vars);
-
+                self.check_expr(condition);
+                self.check_block(then_block);
                 if let Some(b) = else_block {
-                    let mut else_vars = vars.clone();
-                    self.check_block(b, &mut else_vars);
+                    self.check_block(b);
                 }
             }
 
             Stmt::While { condition, body } => {
-                self.check_expr(condition, vars);
-
-                let mut loop_vars = vars.clone();
-                self.check_block(body, &mut loop_vars);
+                self.check_expr(condition);
+                self.check_block(body);
             }
         }
     }
 
-    fn check_expr(&self, expr: &Expr, vars: &HashSet<String>) {
+    /* ======================
+        EXPRESSIONS
+    ====================== */
+
+    fn check_expr(&mut self, expr: &Expr) {
         match expr {
             Expr::VarRef(name) => {
-                if !vars.contains(name) {
+                if !self.is_var_defined(name) {
                     panic!("Semantic error: undefined variable `{}`", name);
                 }
             }
@@ -92,17 +148,16 @@ impl SemanticAnalyzer {
                     panic!("Semantic error: undefined function `{}`", name);
                 }
                 for arg in args {
-                    self.check_expr(arg, vars);
+                    self.check_expr(arg);
                 }
             }
 
             Expr::Binary { left, right, .. } => {
-                self.check_expr(left, vars);
-                self.check_expr(right, vars);
+                self.check_expr(left);
+                self.check_expr(right);
             }
 
-            Expr::IntLiteral(_) => {}
-            Expr::StringLiteral(_) => {}
+            Expr::IntLiteral(_) | Expr::StringLiteral(_) => {}
         }
     }
 }

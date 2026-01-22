@@ -6,6 +6,7 @@ pub struct Program {
 #[derive(Debug, Clone)]
 pub struct FunctionDecl {
     pub name: String,
+    pub params: Vec<String>,
     pub body: Block,
 }
 
@@ -21,6 +22,7 @@ pub enum Stmt {
         value: Expr,
     },
     ExprStmt(Expr),
+    Return(Expr),
     If {
         condition: Expr,
         then_block: Block,

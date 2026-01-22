@@ -1,0 +1,14 @@
+fn add(a, b) {
+    return a + b;
+}
+
+fn sub(a, b) {
+    return a - b;
+}
+
+fn main() {
+    let x = add(2, 3);
+    let y = sub(5, 2);
+    print(y);
+    print(x);
+}

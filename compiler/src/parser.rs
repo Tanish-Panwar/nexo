@@ -47,15 +47,30 @@ impl Parser {
     fn parse_function(&mut self) -> FunctionDecl {
         self.expect(Token::Fn);
 
-        let name = if let Token::Ident(n) = self.current() {
-            let n = n.clone();
-            self.advance();
-            n
-        } else {
-            panic!("Expected function name");
+        let name = match self.current() {
+            Token::Ident(n) => {
+                let n = n.clone();
+                self.advance();
+                n
+            }
+            _ => panic!("Expected function name"),
         };
 
         self.expect(Token::LParen);
+
+        let mut params = Vec::new();
+        while *self.current() != Token::RParen {
+            if let Token::Ident(p) = self.current() {
+                params.push(p.clone());
+                self.advance();
+                if *self.current() == Token::Comma {
+                    self.advance();
+                }
+            } else {
+                panic!("Expected parameter name");
+            }
+        }
+
         self.expect(Token::RParen);
         self.expect(Token::LBrace);
 
@@ -63,8 +78,9 @@ impl Parser {
 
         self.expect(Token::RBrace);
 
-        FunctionDecl { name, body }
+        FunctionDecl { name, params, body }
     }
+
 
     fn parse_block(&mut self) -> Block {
         let mut statements = Vec::new();
@@ -80,11 +96,18 @@ impl Parser {
     // STATEMENTS
     // =======================
 
+
     fn parse_statement(&mut self) -> Stmt {
         match self.current() {
             Token::Let => self.parse_let(),
             Token::If => self.parse_if(),
             Token::While => self.parse_while(),
+            Token::Return => {
+                self.advance();
+                let expr = self.parse_expression();
+                self.expect(Token::Semicolon);
+                Stmt::Return(expr)
+            }
             Token::Ident(_) => {
                 // Lookahead for assignment
                 if matches!(self.tokens[self.position + 1], Token::Equal) {
@@ -100,6 +123,7 @@ impl Parser {
                 self.expect(Token::Semicolon);
                 Stmt::ExprStmt(expr)
             }
+
         }
     }
 
