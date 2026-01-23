@@ -1,4 +1,3 @@
-use crate::runtime_error::RuntimeError;
 use std::collections::HashMap;
 use crate::ast::*;
 
@@ -19,7 +18,6 @@ enum Control {
     Return(Value),
 }
 
-
 pub struct Interpreter {
     functions: HashMap<String, FunctionDecl>,
     loop_depth: usize,
@@ -39,27 +37,25 @@ impl Interpreter {
     }
 
     pub fn run(&mut self) {
-        let main = self.functions.get("main").cloned().expect("no main()");
+        let main = self.functions.get("main")
+            .cloned()
+            .expect("no main() function");
+
         let mut env = HashMap::new();
-
-        if let Err(e) = self.exec_block(&main.body, &mut env) {
-            eprintln!("Runtime error: {}", e.message);
-        }
+        self.exec_block(&main.body, &mut env);
     }
-
-
 
     fn exec_block(&mut self, block: &Block, env: &mut Env) -> Control {
         for stmt in &block.statements {
-            match self.exec_stmt(stmt, env)? {
+            match self.exec_stmt(stmt, env) {
                 Control::None => {}
-                c => return Ok(c),
+                c => return c,
             }
         }
         Control::None
     }
 
-    fn exec_stmt(&mut self, stmt: &Stmt, env: &mut Env) -> Result<Control, RuntimeError> {
+    fn exec_stmt(&mut self, stmt: &Stmt, env: &mut Env) -> Control {
         match stmt {
             Stmt::Let { name, value } => {
                 let v = self.eval_expr(value, env);
@@ -70,7 +66,7 @@ impl Interpreter {
             Stmt::Assign { name, value } => {
                 let v = self.eval_expr(value, env);
                 let slot = env.get_mut(name)
-                    .ok_or(RuntimeError::new("undefined variable"))?;
+                    .expect("assignment to undefined variable");
                 *slot = v;
                 Control::None
             }
@@ -85,11 +81,7 @@ impl Interpreter {
                 Control::Return(v)
             }
 
-            Stmt::If {
-                condition,
-                then_block,
-                else_block,
-            } => {
+            Stmt::If { condition, then_block, else_block } => {
                 if self.eval_expr(condition, env).is_true() {
                     self.exec_block(then_block, env)
                 } else if let Some(b) = else_block {
@@ -120,14 +112,14 @@ impl Interpreter {
 
             Stmt::Break => {
                 if self.loop_depth == 0 {
-                    return Err(RuntimeError::new("break used outside loop"));
+                    panic!("break used outside loop");
                 }
                 Control::Break
             }
 
             Stmt::Continue => {
                 if self.loop_depth == 0 {
-                    return Err(RuntimeError::new("continue used outside loop"));
+                    panic!("continue used outside loop");
                 }
                 Control::Continue
             }
@@ -139,7 +131,9 @@ impl Interpreter {
             Expr::IntLiteral(i) => Value::Int(*i),
             Expr::StringLiteral(s) => Value::Str(s.clone()),
 
-            Expr::VarRef(name) => env.get(name).unwrap().clone(),
+            Expr::VarRef(name) => env.get(name)
+                .unwrap_or_else(|| panic!("undefined variable {}", name))
+                .clone(),
 
             Expr::Binary { left, op, right } => {
                 let l = self.eval_expr(left, env);
@@ -153,7 +147,7 @@ impl Interpreter {
                     (Value::Int(a), Value::Int(b), BinOp::Greater) => Value::Int((a > b) as i64),
                     (Value::Int(a), Value::Int(b), BinOp::Less) => Value::Int((a < b) as i64),
                     (Value::Int(a), Value::Int(b), BinOp::Equal) => Value::Int((a == b) as i64),
-                    _ => panic!("invalid binary op"),
+                    _ => panic!("invalid binary operation"),
                 }
             }
 
@@ -167,19 +161,20 @@ impl Interpreter {
                     }
                     Value::Void
                 } else {
-                    let func = self.functions.get(name).cloned().unwrap();
-                    let mut local = HashMap::new();
+                    let func = self.functions.get(name)
+                        .cloned()
+                        .unwrap_or_else(|| panic!("undefined function {}", name));
 
+                    let mut local: HashMap<String, Value> = HashMap::new();
                     for (p, a) in func.params.iter().zip(args.iter()) {
-                        let val = self.eval_expr(a, env);
-                        local.insert(p.clone(), val);
+                        let v = self.eval_expr(a, env);
+                        local.insert(p.clone(), v);
                     }
 
                     match self.exec_block(&func.body, &mut local) {
                         Control::Return(v) => v,
                         _ => Value::Void,
                     }
-
                 }
             }
         }

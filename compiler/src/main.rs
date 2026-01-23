@@ -4,12 +4,18 @@ mod ast;
 mod parser;
 mod semantic;
 mod interpreter;
+mod vm;
+mod runtime_error;
+
+
 
 use lexer::Lexer;
 use parser::Parser;
 use semantic::SemanticAnalyzer;
 use interpreter::Interpreter;
 use token::Token;
+use vm::{BytecodeCompiler, VM};
+
 
 use std::env;
 use std::fs;
@@ -29,11 +35,18 @@ fn main() {
     }
 
     let mut parser = Parser::new(tokens);
-    let ast = parser.parse_program();
+    let program = parser.parse_program();
 
     let mut semantic = SemanticAnalyzer::new();
-    semantic.analyze(&ast);
+    semantic.analyze(&program);
 
-    let mut interpreter = Interpreter::new(&ast);
-    interpreter.run();
+    // ---- VM PATH ----
+    let compiler = BytecodeCompiler::new();
+    let code = compiler.compile_program(&program);
+    let mut vm = VM::new(code);
+    vm.run();
+
+    // ---- INTERPRETER (REFERENCE) ----
+    // let mut interpreter = Interpreter::new(&program);
+    // interpreter.run();
 }
