@@ -1,3 +1,4 @@
+use crate::runtime_error::RuntimeError;
 use std::collections::HashMap;
 use crate::ast::*;
 
@@ -17,6 +18,7 @@ enum Control {
     Continue,
     Return(Value),
 }
+
 
 pub struct Interpreter {
     functions: HashMap<String, FunctionDecl>,
@@ -39,21 +41,25 @@ impl Interpreter {
     pub fn run(&mut self) {
         let main = self.functions.get("main").cloned().expect("no main()");
         let mut env = HashMap::new();
-        self.exec_block(&main.body, &mut env);
+
+        if let Err(e) = self.exec_block(&main.body, &mut env) {
+            eprintln!("Runtime error: {}", e.message);
+        }
     }
+
 
 
     fn exec_block(&mut self, block: &Block, env: &mut Env) -> Control {
         for stmt in &block.statements {
-            match self.exec_stmt(stmt, env) {
+            match self.exec_stmt(stmt, env)? {
                 Control::None => {}
-                c => return c,
+                c => return Ok(c),
             }
         }
         Control::None
     }
 
-    fn exec_stmt(&mut self, stmt: &Stmt, env: &mut Env) -> Control {
+    fn exec_stmt(&mut self, stmt: &Stmt, env: &mut Env) -> Result<Control, RuntimeError> {
         match stmt {
             Stmt::Let { name, value } => {
                 let v = self.eval_expr(value, env);
@@ -63,7 +69,9 @@ impl Interpreter {
 
             Stmt::Assign { name, value } => {
                 let v = self.eval_expr(value, env);
-                *env.get_mut(name).expect("undefined variable") = v;
+                let slot = env.get_mut(name)
+                    .ok_or(RuntimeError::new("undefined variable"))?;
+                *slot = v;
                 Control::None
             }
 
@@ -112,14 +120,14 @@ impl Interpreter {
 
             Stmt::Break => {
                 if self.loop_depth == 0 {
-                    panic!("break outside loop");
+                    return Err(RuntimeError::new("break used outside loop"));
                 }
                 Control::Break
             }
 
             Stmt::Continue => {
                 if self.loop_depth == 0 {
-                    panic!("continue outside loop");
+                    return Err(RuntimeError::new("continue used outside loop"));
                 }
                 Control::Continue
             }

@@ -157,13 +157,28 @@ impl SemanticAnalyzer {
             }
 
             Expr::Call { name, args } => {
-                if name != "print" && !self.functions.contains_key(name) {
+                if name == "print" {
+                    if args.len() != 1 {
+                        panic!("Semantic error: print expects 1 argument");
+                    }
+                } else if let Some(func) = self.functions.get(name) {
+                    if args.len() != func.params.len() {
+                        panic!(
+                            "Semantic error: function `{}` expects {} args, got {}",
+                            name,
+                            func.params.len(),
+                            args.len()
+                        );
+                    }
+                } else {
                     panic!("Semantic error: undefined function `{}`", name);
                 }
+
                 for arg in args {
                     self.check_expr(arg);
                 }
             }
+
 
             Expr::Binary { left, right, .. } => {
                 self.check_expr(left);
