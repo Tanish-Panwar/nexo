@@ -72,10 +72,15 @@ impl VM {
 
                 Instruction::Print => {
                     let v = self.stack.pop().unwrap();
-                    println!("{:?}", v);
+                    match v {
+                        Value::Int(i) => println!("{}", i),
+                        Value::String(s) => println!("{}", s),
+                        Value::Void => {}
+                    }
                 }
 
-                Instruction::Return | Instruction::Halt => break,
+                Instruction::Return => break,
+                Instruction::Halt => break,
 
                 _ => unimplemented!(),
             }
