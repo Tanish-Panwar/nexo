@@ -1,36 +1,38 @@
 #[derive(Debug, Clone)]
 pub enum Instruction {
-    // Stack ops
     PushInt(i64),
     PushString(String),
     LoadVar(String),
     StoreVar(String),
 
-    // Arithmetic
     Add,
     Sub,
     Mul,
     Div,
 
-    // Comparison
     Less,
     Equal,
     Greater,
 
-    // Control flow
+    Call(String, usize),
+    Return,
+
+    Print,
+
     Jump(usize),
     JumpIfFalse(usize),
 
-    // Function calls
-    Call(String, usize), // name, argc
-    Return,
-
-    // Builtins
-    Print,
-
-    // Loop control
-    Break,
-    Continue,
-
     Halt,
+}
+
+#[derive(Debug)]
+pub struct Function {
+    pub name: String,
+    pub arity: usize,
+    pub entry: usize, // instruction index
+}
+
+pub struct Program {
+    pub functions: Vec<Function>,
+    pub code: Vec<Instruction>,
 }

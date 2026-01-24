@@ -3,7 +3,6 @@ mod lexer;
 mod ast;
 mod parser;
 mod semantic;
-mod interpreter;
 mod vm;
 mod runtime_error;
 
@@ -12,7 +11,6 @@ mod runtime_error;
 use lexer::Lexer;
 use parser::Parser;
 use semantic::SemanticAnalyzer;
-use interpreter::Interpreter;
 use token::Token;
 use vm::{BytecodeCompiler, VM};
 
@@ -42,8 +40,8 @@ fn main() {
 
     // ---- VM PATH ----
     let compiler = BytecodeCompiler::new();
-    let code = compiler.compile_program(&program);
-    let mut vm = VM::new(code);
+    let bytecode = compiler.compile(&program);
+    let mut vm = VM::new(bytecode);
     vm.run();
 
     // ---- INTERPRETER (REFERENCE) ----

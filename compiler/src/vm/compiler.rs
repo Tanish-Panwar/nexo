@@ -1,27 +1,67 @@
-use crate::ast::*;
-use super::bytecode::Instruction;
+use crate::ast::{
+    Program as AstProgram,
+    FunctionDecl,
+    Block,
+    Stmt,
+    Expr,
+    BinOp,
+};
+
+use super::bytecode::{
+    Instruction,
+    Program as BytecodeProgram,
+    Function as BytecodeFunction,
+};
 
 pub struct BytecodeCompiler {
-    pub code: Vec<Instruction>,
+    code: Vec<Instruction>,
+    functions: Vec<BytecodeFunction>,
+    loop_stack: Vec<LoopContext>,
+}
+
+struct LoopContext {
+    start: usize,
+    breaks: Vec<usize>,
 }
 
 impl BytecodeCompiler {
     pub fn new() -> Self {
-        Self { code: vec![] }
+        Self {
+            code: vec![],
+            functions: vec![],
+            loop_stack: vec![],
+        }
     }
 
-    pub fn compile_program(mut self, program: &Program) -> Vec<Instruction> {
+    /// ENTRY POINT
+    pub fn compile(mut self, program: &AstProgram) -> BytecodeProgram {
         for func in &program.functions {
-            if func.name == "main" {
-                self.compile_function(func);
-            }
+            let entry = self.code.len();
+            self.compile_function(func);
+
+            self.functions.push(BytecodeFunction {
+                name: func.name.clone(),
+                arity: func.params.len(),
+                entry,
+            });
         }
 
+        // entry = call main
+        self.code.push(Instruction::Call("main".into(), 0));
         self.code.push(Instruction::Halt);
-        self.code
+
+        BytecodeProgram {
+            functions: self.functions,
+            code: self.code,
+        }
     }
 
     fn compile_function(&mut self, func: &FunctionDecl) {
+        // 🔥 bind parameters (reverse order)
+        for param in func.params.iter().rev() {
+            self.code.push(Instruction::StoreVar(param.clone()));
+        }
+
         self.compile_block(&func.body);
         self.code.push(Instruction::Return);
     }
@@ -34,12 +74,8 @@ impl BytecodeCompiler {
 
     fn compile_stmt(&mut self, stmt: &Stmt) {
         match stmt {
-            Stmt::Let { name, value } => {
-                self.compile_expr(value);
-                self.code.push(Instruction::StoreVar(name.clone()));
-            }
-
-            Stmt::Assign { name, value } => {
+            Stmt::Let { name, value }
+            | Stmt::Assign { name, value } => {
                 self.compile_expr(value);
                 self.code.push(Instruction::StoreVar(name.clone()));
             }
@@ -53,14 +89,18 @@ impl BytecodeCompiler {
                 self.code.push(Instruction::Return);
             }
 
-            Stmt::If { condition, then_block, else_block } => {
+            Stmt::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
                 self.compile_expr(condition);
-                let jump_if_false_pos = self.code.len();
+                let jmp_false = self.code.len();
                 self.code.push(Instruction::JumpIfFalse(0));
 
                 self.compile_block(then_block);
 
-                let jump_end = self.code.len();
+                let jmp_end = self.code.len();
                 self.code.push(Instruction::Jump(0));
 
                 let else_start = self.code.len();
@@ -69,30 +109,50 @@ impl BytecodeCompiler {
                 }
 
                 let end = self.code.len();
-                self.code[jump_if_false_pos] = Instruction::JumpIfFalse(else_start);
-                self.code[jump_end] = Instruction::Jump(end);
+                self.code[jmp_false] = Instruction::JumpIfFalse(else_start);
+                self.code[jmp_end] = Instruction::Jump(end);
             }
 
             Stmt::While { condition, body } => {
-                let loop_start = self.code.len();
-                self.compile_expr(condition);
+                let start = self.code.len();
 
-                let exit_jump = self.code.len();
+                self.compile_expr(condition);
+                let exit = self.code.len();
                 self.code.push(Instruction::JumpIfFalse(0));
 
-                self.compile_block(body);
-                self.code.push(Instruction::Jump(loop_start));
+                self.loop_stack.push(LoopContext {
+                    start,
+                    breaks: vec![],
+                });
 
-                let loop_end = self.code.len();
-                self.code[exit_jump] = Instruction::JumpIfFalse(loop_end);
+                self.compile_block(body);
+                self.code.push(Instruction::Jump(start));
+
+                let end = self.code.len();
+                self.code[exit] = Instruction::JumpIfFalse(end);
+
+                let ctx = self.loop_stack.pop().unwrap();
+                for b in ctx.breaks {
+                    self.code[b] = Instruction::Jump(end);
+                }
             }
 
             Stmt::Break => {
-                self.code.push(Instruction::Break);
+                let ctx = self.loop_stack
+                    .last_mut()
+                    .expect("break outside loop");
+
+                let pos = self.code.len();
+                self.code.push(Instruction::Jump(0));
+                ctx.breaks.push(pos);
             }
 
             Stmt::Continue => {
-                self.code.push(Instruction::Continue);
+                let ctx = self.loop_stack
+                    .last()
+                    .expect("continue outside loop");
+
+                self.code.push(Instruction::Jump(ctx.start));
             }
         }
     }
@@ -115,16 +175,15 @@ impl BytecodeCompiler {
                 self.compile_expr(left);
                 self.compile_expr(right);
 
-                match op {
-                    BinOp::Add => self.code.push(Instruction::Add),
-                    BinOp::Sub => self.code.push(Instruction::Sub),
-                    BinOp::Mul => self.code.push(Instruction::Mul),
-                    BinOp::Div => self.code.push(Instruction::Div),
-                    BinOp::Less => self.code.push(Instruction::Less),
-                    BinOp::Greater => self.code.push(Instruction::Greater),
-                    BinOp::Equal => self.code.push(Instruction::Equal),
-                }
-
+                self.code.push(match op {
+                    BinOp::Add => Instruction::Add,
+                    BinOp::Sub => Instruction::Sub,
+                    BinOp::Mul => Instruction::Mul,
+                    BinOp::Div => Instruction::Div,
+                    BinOp::Less => Instruction::Less,
+                    BinOp::Greater => Instruction::Greater,
+                    BinOp::Equal => Instruction::Equal,
+                });
             }
 
             Expr::Call { name, args } => {
