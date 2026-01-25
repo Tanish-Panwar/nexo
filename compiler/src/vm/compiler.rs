@@ -65,10 +65,15 @@ impl BytecodeCompiler {
     }
 
     fn compile_block(&mut self, block: &Block) {
+        self.code.push(Instruction::EnterScope);
+
         for stmt in &block.statements {
             self.compile_stmt(stmt);
         }
+
+        self.code.push(Instruction::ExitScope);
     }
+
 
     fn compile_stmt(&mut self, stmt: &Stmt) {
         match stmt {

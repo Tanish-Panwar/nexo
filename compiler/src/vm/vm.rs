@@ -111,6 +111,19 @@ impl VM {
                     }
                 }
 
+                Instruction::EnterScope => {
+                    if let Some(frame) = self.current_frame_mut() {
+                        frame.scopes.push(HashMap::new());
+                    }
+                }
+
+                Instruction::ExitScope => {
+                    if let Some(frame) = self.current_frame_mut() {
+                        frame.scopes.pop();
+                    }
+                }
+
+
                 Instruction::Add => binop(&mut self.stack, |a, b| a + b),
                 Instruction::Sub => binop(&mut self.stack, |a, b| a - b),
                 Instruction::Mul => binop(&mut self.stack, |a, b| a * b),

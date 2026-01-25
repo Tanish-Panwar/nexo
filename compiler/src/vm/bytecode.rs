@@ -5,6 +5,7 @@ pub enum Instruction {
     LoadVar(String),
     StoreVar(String),
     PushVoid,
+    
 
     Add,
     Sub,
@@ -23,6 +24,10 @@ pub enum Instruction {
 
     Jump(usize),
     JumpIfFalse(usize),
+
+    EnterScope,
+    ExitScope,
+
 
     Halt,
 }
