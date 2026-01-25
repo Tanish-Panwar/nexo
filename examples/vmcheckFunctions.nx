@@ -2,6 +2,34 @@ fn add(a, b) {
     return a + b;
 }
 
+fn minus(a, b) {
+    return a - b;
+}
+
+fn multiply(a, b) {
+    return a * b;
+}
+
+fn fact(x) {
+    let a = 1;
+    let i = 1;
+    while(i < x+1) {
+        a = a * i;
+        i = i + 1;
+    }
+    return a;
+}
+
 fn main() {
-    print(add(2, 3));
+    let a = 5;
+    let b = 10;
+    print(minus(a, b));
+    print(multiply(a, b));
+    print(add(a, b));
+    
+    let x = 10;
+    x = x + 1;
+    print(x + 1);
+    
+    print(fact(5));
 }

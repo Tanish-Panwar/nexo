@@ -35,6 +35,7 @@ impl BytecodeCompiler {
 
     /// ENTRY POINT
     pub fn compile(mut self, program: &AstProgram) -> BytecodeProgram {
+        // First pass: reserve function entries
         for func in &program.functions {
             let entry = self.code.len();
             self.compile_function(func);
@@ -45,10 +46,6 @@ impl BytecodeCompiler {
                 entry,
             });
         }
-
-        // entry = call main
-        self.code.push(Instruction::Call("main".into(), 0));
-        self.code.push(Instruction::Halt);
 
         BytecodeProgram {
             functions: self.functions,
@@ -63,6 +60,7 @@ impl BytecodeCompiler {
         }
 
         self.compile_block(&func.body);
+        self.code.push(Instruction::PushVoid);
         self.code.push(Instruction::Return);
     }
 
@@ -82,7 +80,9 @@ impl BytecodeCompiler {
 
             Stmt::ExprStmt(expr) => {
                 self.compile_expr(expr);
+                self.code.push(Instruction::Pop);
             }
+
 
             Stmt::Return(expr) => {
                 self.compile_expr(expr);

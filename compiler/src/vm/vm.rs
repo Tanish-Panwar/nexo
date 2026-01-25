@@ -7,7 +7,7 @@ use super::value::Value;
 struct CallFrame {
     return_ip: usize,
     base: usize,
-    locals: HashMap<String, Value>,
+    scopes: Vec<HashMap<String, Value>>,
 }
 
 pub struct VM {
@@ -26,7 +26,21 @@ impl VM {
             functions.insert(f.name, (f.entry, f.arity));
         }
 
-        let entry_ip = program.code.len() - 2; // Call main
+        let main_arity = functions
+            .get("main")
+            .map(|(_, arity)| *arity)
+            .expect("No 'main' function defined");
+
+
+        if main_arity != 0 {
+            panic!("main() must not take arguments");
+        }
+
+        let mut code = program.code;
+        let entry_ip = code.len();
+
+        code.push(Instruction::Call("main".into(), 0));
+        code.push(Instruction::Halt);
 
         VM {
             ip: entry_ip,
@@ -34,16 +48,16 @@ impl VM {
             globals: HashMap::new(),
             frames: vec![],
             functions,
-            code: program.code,
+            code,
         }
-    }
-
-    fn current_frame_mut(&mut self) -> Option<&mut CallFrame> {
-        self.frames.last_mut()
     }
 
     fn current_frame(&self) -> Option<&CallFrame> {
         self.frames.last()
+    }
+
+    fn current_frame_mut(&mut self) -> Option<&mut CallFrame> {
+        self.frames.last_mut()
     }
 
     pub fn run(&mut self) {
@@ -58,30 +72,41 @@ impl VM {
                 }
 
                 Instruction::LoadVar(name) => {
-                    // 1️⃣ check local scope
+                    // Try to resolve variable without mutating self
+                    let mut value = None;
+
                     if let Some(frame) = self.current_frame() {
-                        if let Some(v) = frame.locals.get(&name) {
-                            self.stack.push(v.clone());
-                            self.ip += 1;
-                            continue;
+                        for scope in frame.scopes.iter().rev() {
+                            if let Some(v) = scope.get(&name) {
+                                value = Some(v.clone());
+                                break;
+                            }
                         }
                     }
 
-                    // 2️⃣ fallback to globals
-                    let v = self.globals
-                        .get(&name)
-                        .cloned()
-                        .unwrap_or_else(|| panic!("undefined variable '{}'", name));
+                    let v = if let Some(v) = value {
+                        v
+                    } else {
+                        self.globals
+                            .get(&name)
+                            .cloned()
+                            .unwrap_or_else(|| panic!("undefined variable '{}'", name))
+                    };
 
                     self.stack.push(v);
                 }
 
+
                 Instruction::StoreVar(name) => {
-                    let v = self.stack.pop().unwrap();
+                    let v = self.stack.pop().expect("stack underflow");
 
                     if let Some(frame) = self.current_frame_mut() {
-                        frame.locals.insert(name, v);
+                        frame.scopes
+                            .last_mut()
+                            .expect("no scope in frame")
+                            .insert(name, v);
                     } else {
+                        // global assignment
                         self.globals.insert(name, v);
                     }
                 }
@@ -96,8 +121,13 @@ impl VM {
                 Instruction::Equal => cmpop(&mut self.stack, |a, b| a == b),
 
                 Instruction::Print => {
-                    let v = self.stack.pop().unwrap();
-                    println!("{:?}", v);
+                    let v = self.stack.pop().expect("stack underflow");
+                    match v {
+                        Value::Int(i) => println!("{}", i),
+                        Value::String(s) => println!("{}", s),
+                        Value::Void => println!(""),
+                    }
+                    self.stack.push(Value::Void);
                 }
 
                 Instruction::Jump(pos) => {
@@ -106,11 +136,19 @@ impl VM {
                 }
 
                 Instruction::JumpIfFalse(pos) => {
-                    let v = self.stack.pop().unwrap();
+                    let v = self.stack.pop().expect("stack underflow");
                     if !v.is_truthy() {
                         self.ip = pos;
                         continue;
                     }
+                }
+
+                Instruction::Pop => {
+                    self.stack.pop();
+                }
+
+                Instruction::PushVoid => {
+                    self.stack.push(Value::Void);
                 }
 
                 Instruction::Call(name, argc) => {
@@ -126,7 +164,7 @@ impl VM {
                     let frame = CallFrame {
                         return_ip: self.ip + 1,
                         base: self.stack.len() - argc,
-                        locals: HashMap::new(),
+                        scopes: vec![HashMap::new()],
                     };
 
                     self.frames.push(frame);
@@ -159,8 +197,12 @@ impl VM {
     }
 }
 
+/* ===========================
+   Helpers
+=========================== */
+
 fn pop_int(stack: &mut Vec<Value>) -> i64 {
-    match stack.pop().unwrap() {
+    match stack.pop().expect("stack underflow") {
         Value::Int(v) => v,
         _ => panic!("expected int"),
     }
