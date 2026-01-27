@@ -62,7 +62,9 @@ impl VM {
 
     pub fn run(&mut self) {
         loop {
-            match self.code[self.ip].clone() {
+            let instr = self.code[self.ip].clone();
+
+            match instr {
                 Instruction::PushInt(v) => {
                     self.stack.push(Value::Int(v));
                 }
@@ -72,7 +74,6 @@ impl VM {
                 }
 
                 Instruction::LoadVar(name) => {
-                    // Try to resolve variable without mutating self
                     let mut value = None;
 
                     if let Some(frame) = self.current_frame() {
@@ -84,18 +85,15 @@ impl VM {
                         }
                     }
 
-                    let v = if let Some(v) = value {
-                        v
-                    } else {
+                    let v = value.unwrap_or_else(|| {
                         self.globals
                             .get(&name)
                             .cloned()
                             .unwrap_or_else(|| panic!("undefined variable '{}'", name))
-                    };
+                    });
 
                     self.stack.push(v);
                 }
-
 
                 Instruction::StoreVar(name) => {
                     let v = self.stack.pop().expect("stack underflow");
@@ -103,10 +101,9 @@ impl VM {
                     if let Some(frame) = self.current_frame_mut() {
                         frame.scopes
                             .last_mut()
-                            .expect("no scope in frame")
+                            .expect("no scope")
                             .insert(name, v);
                     } else {
-                        // global assignment
                         self.globals.insert(name, v);
                     }
                 }
@@ -122,7 +119,6 @@ impl VM {
                         frame.scopes.pop();
                     }
                 }
-
 
                 Instruction::Add => binop(&mut self.stack, |a, b| a + b),
                 Instruction::Sub => binop(&mut self.stack, |a, b| a - b),
@@ -165,6 +161,19 @@ impl VM {
                 }
 
                 Instruction::Call(name, argc) => {
+                    // builtin: print
+                    if name == "print" {
+                        let v = self.stack.pop().expect("print expects value");
+                        match v {
+                            Value::Int(i) => println!("{}", i),
+                            Value::String(s) => println!("{}", s),
+                            Value::Void => println!(""),
+                        }
+                        self.stack.push(Value::Void);
+                        self.ip += 1;
+                        continue;
+                    }
+
                     let (entry, arity) = self.functions
                         .get(&name)
                         .unwrap_or_else(|| panic!("undefined function '{}'", name))
@@ -185,18 +194,16 @@ impl VM {
                     continue;
                 }
 
+
                 Instruction::Return => {
-                    let result = self.stack.pop();
+                    let result = self.stack.pop().unwrap_or(Value::Void);
 
                     let frame = self.frames
                         .pop()
                         .expect("return outside function");
 
                     self.stack.truncate(frame.base);
-
-                    if let Some(v) = result {
-                        self.stack.push(v);
-                    }
+                    self.stack.push(result);
 
                     self.ip = frame.return_ip;
                     continue;
@@ -208,6 +215,7 @@ impl VM {
             self.ip += 1;
         }
     }
+
 }
 
 /* ===========================

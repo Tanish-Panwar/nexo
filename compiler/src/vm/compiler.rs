@@ -35,16 +35,20 @@ impl BytecodeCompiler {
 
     /// ENTRY POINT
     pub fn compile(mut self, program: &AstProgram) -> BytecodeProgram {
-        // First pass: reserve function entries
+        // PASS 1: register function entries
         for func in &program.functions {
-            let entry = self.code.len();
-            self.compile_function(func);
-
             self.functions.push(BytecodeFunction {
                 name: func.name.clone(),
                 arity: func.params.len(),
-                entry,
+                entry: 0, // temporary
             });
+        }
+
+        // PASS 2: compile bodies
+        for (i, func) in program.functions.iter().enumerate() {
+            let entry = self.code.len();
+            self.functions[i].entry = entry;
+            self.compile_function(func);
         }
 
         BytecodeProgram {
@@ -53,16 +57,23 @@ impl BytecodeCompiler {
         }
     }
 
+
     fn compile_function(&mut self, func: &FunctionDecl) {
-        // 🔥 bind parameters (reverse order)
+        // Create function scope
+        self.code.push(Instruction::EnterScope);
+
+        // Bind parameters (reverse pop order)
         for param in func.params.iter().rev() {
             self.code.push(Instruction::StoreVar(param.clone()));
         }
 
         self.compile_block(&func.body);
+
         self.code.push(Instruction::PushVoid);
+        self.code.push(Instruction::ExitScope);
         self.code.push(Instruction::Return);
     }
+
 
     fn compile_block(&mut self, block: &Block) {
         self.code.push(Instruction::EnterScope);
@@ -73,6 +84,7 @@ impl BytecodeCompiler {
 
         self.code.push(Instruction::ExitScope);
     }
+
 
 
     fn compile_stmt(&mut self, stmt: &Stmt) {
@@ -196,12 +208,9 @@ impl BytecodeCompiler {
                     self.compile_expr(arg);
                 }
 
-                if name == "print" {
-                    self.code.push(Instruction::Print);
-                } else {
-                    self.code.push(Instruction::Call(name.clone(), args.len()));
-                }
+                self.code.push(Instruction::Call(name.clone(), args.len()));
             }
+
         }
     }
 }
